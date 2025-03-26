@@ -1,0 +1,57 @@
+ESPECIFICACIÓN FUNCIONAL - USER EXIT VL01N
+
+1. Objetivo
+Implementar un user exit en la transacción VL01N que impida la grabación de entregas cuando:
+- El material es loteable (XCHPF = 'X')
+- No se ha ingresado el lote en alguna posición
+
+2. Alcance
+- Transacción: VL01N (Creación de Entrega)
+- Sistema: SAP S/4HANA
+- Módulo: SD (Sales and Distribution)
+
+3. Requisitos Funcionales
+3.1 Validaciones
+- Verificar si el material es loteable (tabla MARC, campo XCHPF)
+- Validar que todas las posiciones con material loteable tengan lote ingresado
+- Bloquear grabado si no se cumplen las condiciones
+
+3.2 Mensajes de Error
+- Mensaje E: "Material &1 es loteable - Ingrese lote en posición &2"
+  - &1: Número de material
+  - &2: Número de posición
+
+4. Diseño Técnico
+4.1 User Exit
+- Nombre: EXIT_SAPLV50I_001
+- Include: MV50AFZZ
+- Método: BEFORE_SAVE
+
+4.2 Lógica de Implementación
+DATA: lt_vbap TYPE TABLE OF vbap,
+      ls_vbap TYPE vbap,
+      ls_marc TYPE marc.
+
+LOOP AT lt_vbap INTO ls_vbap.
+  SELECT SINGLE xchpf INTO ls_marc-xchpf
+  FROM marc
+  WHERE matnr = ls_vbap-matnr
+    AND werks = ls_vbap-werks.
+
+  IF ls_marc-xchpf = 'X' AND ls_vbap-charg IS INITIAL.
+    MESSAGE e001(zsd) WITH ls_vbap-matnr ls_vbap-posnr.
+    EXIT.
+  ENDIF.
+ENDLOOP.
+
+5. Pruebas
+5.1 Casos de Prueba
+- CP01: Material no loteable sin lote - Grabación exitosa
+- CP02: Material loteable con lote - Grabación exitosa  
+- CP03: Material loteable sin lote - Error E001
+- CP04: Varios materiales, uno loteable sin lote - Error E001
+
+6. Aprobaciones
+- Analista Funcional: ____________________
+- Desarrollador ABAP: ____________________
+- Usuario Clave: ________________________
